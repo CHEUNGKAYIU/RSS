@@ -32,6 +32,7 @@ body {
   align-items: center;
   justify-content: space-between;
   height: 100px;
+  border-radius: 12px;
   /* min-height: 60px; */
 }
 
@@ -118,9 +119,126 @@ body {
   border: 1px solid #e1e5e9;
 }
 
-.rss-card:hover {
+/* .rss-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+} */
+
+/* 图片画廊样式 */
+.image-gallery {
+  margin: 1rem 0;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.gallery-item {
+  position: relative;
+  cursor: pointer;
+  border-radius: 8px;
+  overflow: hidden;
+  aspect-ratio: 1;
+  transition: transform 0.2s ease;
+}
+
+.gallery-item:hover {
+  transform: scale(1.05);
+}
+
+.gallery-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 图片灯箱样式 */
+.lightbox {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  cursor: pointer;
+}
+
+.lightbox-content {
+  position: relative;
+  max-width: 90%;
+  max-height: 90%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+.lightbox-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  line-height: 1;
+}
+
+.lightbox-prev,
+.lightbox-next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 1rem;
+  border-radius: 50%;
+  transition: background 0.2s ease;
+}
+
+.lightbox-prev:hover,
+.lightbox-next:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.lightbox-prev {
+  left: -60px;
+}
+
+.lightbox-next {
+  right: -60px;
+}
+
+.lightbox-counter {
+  position: absolute;
+  bottom: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  font-size: 1rem;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
 }
 
 .rss-title {
@@ -160,6 +278,7 @@ body {
 
 .rss-source {
   font-weight: 600;
+  font-size: 15px;
   color: #667eea;
 }
 
@@ -222,6 +341,52 @@ body {
   border-color: #667eea;
 }
 
+.form-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.form-help {
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-top: 0.5rem;
+  line-height: 1.4;
+}
+
+/* 复选框样式 */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.checkbox-input {
+  margin-right: 0.75rem;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #667eea;
+}
+
+.checkbox-text {
+  font-size: 1rem;
+  user-select: none;
+}
+
 .btn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -269,9 +434,17 @@ body {
   flex: 1;
 }
 
+.source-name {
+  font-weight: 700;
+  color: #2c3e50;
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+}
+
 .source-url {
-  font-weight: 600;
+  font-weight: 500;
   color: #667eea;
+  font-size: 0.875rem;
   margin-bottom: 0.25rem;
 }
 
@@ -289,6 +462,112 @@ body {
 .btn-danger:hover {
   background: #c0392b;
   box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+}
+
+.btn-edit {
+  background: #3498db;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  margin-right: 0.5rem;
+}
+
+.btn-edit:hover {
+  background: #2980b9;
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+}
+
+.btn-secondary {
+  background: #95a5a6;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  margin-left: 0.5rem;
+}
+
+.btn-secondary:hover {
+  background: #7f8c8d;
+  box-shadow: 0 4px 12px rgba(149, 165, 166, 0.4);
+}
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.source-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* 分组排序样式 */
+.group-sort-section {
+  margin-top: 0rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.group-sort-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.group-sort-desc {
+  color: #666;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.group-sort-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.group-sort-item {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: move;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.group-sort-item:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border-color: #e1e5e9;
+}
+
+.group-sort-item:active {
+  transform: scale(0.98);
+}
+
+.group-sort-handle {
+  color: #999;
+  font-size: 1.2rem;
+  cursor: grab;
+  user-select: none;
+}
+
+.group-sort-handle:active {
+  cursor: grabbing;
+}
+
+.group-sort-name {
+  flex: 1;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.group-sort-count {
+  color: #666;
+  font-size: 0.875rem;
 }
 
 /* 加载状态 */
@@ -345,5 +624,31 @@ body {
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
+  }
+  
+  .source-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .form-actions .btn {
+    margin: 0.25rem 0;
+  }
+  
+  .group-sort-section {
+    padding: 1rem;
+  }
+  
+  .group-sort-item {
+    padding: 0.75rem;
+  }
+  
+  .group-sort-handle {
+    font-size: 1rem;
   }
 }

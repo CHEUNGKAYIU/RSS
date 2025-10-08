@@ -109,17 +109,20 @@ export default {
       )
     }
 
-    // 合并新旧数据，新数据放在顶部
+    // 合并新旧数据，按时间排序
     const mergeData = (newItems, existingItems) => {
       const merged = [...existingItems]
       let hasNewItems = false
 
       newItems.forEach(newItem => {
         if (!isItemExists(newItem, merged)) {
-          merged.unshift(newItem) // 新条目添加到顶部
+          merged.push(newItem) // 新条目添加到数组末尾
           hasNewItems = true
         }
       })
+
+      // 按发布时间排序，最新的在最前面
+      merged.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
 
       return { merged, hasNewItems }
     }
@@ -127,13 +130,28 @@ export default {
     // 获取所有分组
     const groups = computed(() => {
       const sources = JSON.parse(localStorage.getItem('rssSources') || '[]')
-      const groupSet = new Set(['全部'])
+      const groupSet = new Set()
       sources.forEach(source => {
         if (source.group) {
           groupSet.add(source.group)
         }
       })
-      return Array.from(groupSet)
+      
+      // 获取保存的排序顺序
+      const savedOrder = localStorage.getItem('groupOrder')
+      let sortedGroups = []
+      
+      if (savedOrder) {
+        const order = JSON.parse(savedOrder)
+        // 按保存的顺序排列，未保存的组放在最后
+        sortedGroups = order.filter(group => groupSet.has(group))
+          .concat(Array.from(groupSet).filter(group => !order.includes(group)))
+      } else {
+        sortedGroups = Array.from(groupSet)
+      }
+      
+      // 将"全部"放在最前面
+      return ['全部', ...sortedGroups]
     })
 
     // 获取RSS源的显示模式
@@ -141,6 +159,24 @@ export default {
       const sources = JSON.parse(localStorage.getItem('rssSources') || '[]')
       const sourceConfig = sources.find(s => s.url === source)
       return sourceConfig ? sourceConfig.displayMode : 'summary'
+    }
+
+    // 获取RSS源配置
+    const getSourceConfig = (source) => {
+      const sources = JSON.parse(localStorage.getItem('rssSources') || '[]')
+      return sources.find(s => s.url === source) || {
+        displayMode: 'summary',
+        removeImages: false,
+        showTitle: false,
+        htmlFilters: ''
+      }
+    }
+
+    // 获取RSS源名称
+    const getSourceName = (source) => {
+      const sources = JSON.parse(localStorage.getItem('rssSources') || '[]')
+      const sourceConfig = sources.find(s => s.url === source)
+      return sourceConfig ? (sourceConfig.name || source) : source
     }
 
     // 获取RSS源的分组
@@ -204,47 +240,107 @@ export default {
       return match ? match[1] : null
     }
     
-    // 解析RSS XML
-    const parseRSS = (xmlText, sourceUrl) => {
-      const parser = new DOMParser()
-      const xmlDoc = parser.parseFromString(xmlText, 'text/xml')
-      const items = xmlDoc.querySelectorAll('item')
-      
-      return Array.from(items).map((item, index) => {
-        const title = item.querySelector('title')?.textContent || '无标题'
-        const description = item.querySelector('description')?.textContent || ''
-        const pubDate = item.querySelector('pubDate')?.textContent || ''
-        const link = item.querySelector('link')?.textContent || ''
-        
-        // 提取图片URL
-        const imageUrl = extractImageUrl(description)
-        
-        return {
-          id: `${sourceUrl}-${index}`,
-          title,
-          content: description,
-          pubDate,
-          link,
-          source: sourceUrl,
-          imageUrl: imageUrl,
-          cachedAt: Date.now()
-        }
-      })
+    // 将图片URL转换为代理URL
+    const getProxyImageUrl = (imageUrl) => {
+      if (!imageUrl) return null
+      return `http://localhost:3001/api/image-proxy?url=${encodeURIComponent(imageUrl)}`
     }
+    
 
     // 获取RSS内容
     const fetchRSS = async (sourceUrl) => {
       try {
-        // 使用CORS代理来避免跨域问题
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(sourceUrl)}`
-        const response = await fetch(proxyUrl)
+        // 使用后端API代理RSS请求
+        const apiUrl = `http://localhost:3001/api/rss?url=${encodeURIComponent(sourceUrl)}`
+        const response = await fetch(apiUrl)
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
         }
         
-        const xmlText = await response.text()
-        return parseRSS(xmlText, sourceUrl)
+        const rssData = await response.json()
+        
+        // 处理RSS数据，应用配置
+        const sourceConfig = getSourceConfig(sourceUrl)
+        return rssData.items.map(item => {
+          // 提取图片URLs（只有在不去除图片时才提取）
+          const imageUrls = []
+          if (!sourceConfig.removeImages) {
+            const imgRegex = /<img[^>]+src="([^"]+)"/gi
+            let match
+            while ((match = imgRegex.exec(item.content)) !== null) {
+              const proxyUrl = getProxyImageUrl(match[1])
+              imageUrls.push(proxyUrl)
+            }
+          }
+          
+          // 处理内容，根据配置去除图片
+          let processedContent = item.content
+          if (sourceConfig.removeImages) {
+            processedContent = processedContent.replace(/<img[^>]*>/gi, '')
+          } else {
+            // 如果不去除图片，则从内容中移除img标签，因为图片会单独显示
+            processedContent = processedContent.replace(/<img[^>]*>/gi, '')
+          }
+          
+          // 去除audio标签
+          processedContent = processedContent.replace(/<audio[^>]*>.*?<\/audio>/gi, '')
+          
+          // 应用HTML过滤器
+          if (sourceConfig.htmlFilters) {
+            const filters = sourceConfig.htmlFilters.split('\n').filter(filter => filter.trim())
+            filters.forEach(filter => {
+              const trimmedFilter = filter.trim()
+              if (trimmedFilter) {
+                try {
+                  // 尝试作为正则表达式处理
+                  const regex = new RegExp(trimmedFilter, 'gi')
+                  processedContent = processedContent.replace(regex, '')
+                } catch (error) {
+                  // 如果正则表达式无效，则作为普通字符串处理
+                  processedContent = processedContent.replace(new RegExp(trimmedFilter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '')
+                }
+              }
+            })
+          }
+          
+          // 清理多余的换行符
+          processedContent = processedContent
+            .replace(/\n\s*\n\s*\n+/g, '\n') // 将多个连续换行替换为单个换行
+            .replace(/^\s+|\s+$/g, '') // 去除首尾空白
+            .replace(/\n\s+/g, '\n') // 去除换行后的空白字符
+            .replace(/\s+\n/g, '\n') // 去除换行前的空白字符
+          
+          // 清理p标签前后的空格
+          processedContent = processedContent
+            .replace(/\s*<p[^>]*>\s*/gi, '<p>') // 去除p标签前后的空格
+            .replace(/\s*<\/p>\s*/gi, '</p>') // 去除结束p标签前后的空格
+            .replace(/<p[^>]*>\s*<\/p>/gi, '') // 去除空的p标签
+            .replace(/\s+<p/gi, '<p') // 去除p标签前的空格
+            .replace(/<\/p>\s+<p/gi, '</p><p') // 去除p标签之间的空格
+          
+          // 将图片URL转换为代理URL
+          processedContent = processedContent.replace(
+            /<img([^>]+)src="([^"]+)"/gi,
+            (match, attributes, src) => {
+              const proxyUrl = getProxyImageUrl(src)
+              return `<img${attributes}src="${proxyUrl}"`
+            }
+          )
+          
+          // 处理imageUrl字段，转换为代理URL
+          const proxyImageUrl = getProxyImageUrl(item.imageUrl)
+          
+          return {
+            ...item,
+            content: processedContent,
+            imageUrl: proxyImageUrl,
+            imageUrls: imageUrls, // 添加图片URLs数组
+            sourceName: sourceConfig.name || sourceUrl,
+            showTitle: sourceConfig.showTitle,
+            removeImages: sourceConfig.removeImages // 添加去除图片配置
+          }
+        })
       } catch (err) {
         console.error(`获取RSS失败 ${sourceUrl}:`, err)
         return []
@@ -297,7 +393,16 @@ export default {
           
           if (hasNewItems) {
             saveCachedData(merged)
-            console.log('发现新条目，已更新到顶部')
+            const now = new Date()
+            const timeString = now.toLocaleString('zh-CN', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            })
+            console.log('发现新条目，已更新到顶部 - ' + timeString)
           }
         }
         
@@ -335,6 +440,8 @@ export default {
       // 先尝试加载缓存数据
       const cachedItems = getCachedData()
       if (cachedItems.length > 0) {
+        // 确保缓存数据也按时间排序
+        cachedItems.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
         rssItems.value = cachedItems
         loading.value = false
       }
@@ -371,6 +478,9 @@ export default {
       selectedGroup,
       filteredItems,
       getDisplayMode,
+      getSourceConfig,
+      getSourceName,
+      getProxyImageUrl,
       selectGroup,
       goToSettings
     }
